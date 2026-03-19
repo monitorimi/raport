@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Google Form Responses</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        h2 {
+            color: #333;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            color: #1976d2;
+        }
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 18px;
+            color: #666;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .image-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        img {
+            max-width: 150px;
+            height: auto;
+            cursor: pointer;
+            margin: 2px;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+        img:hover {
+            opacity: 0.8;
+            border: 3px solid #4CAF50;
+            transform: scale(1.05);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.95);
+        }
+        .modal-content {
+            margin: auto;
+            display: block;
+            max-width: 90%;
+            max-height: 90%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 8px;
+        }
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: #f1f1f1;
+            font-size: 50px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 1001;
+            transition: color 0.3s;
+        }
+        .close:hover {
+            color: #ff4444;
+        }
+        .countdown {
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            color: #856404;
+            text-align: center;
+        }
+        @media (max-width: 768px) {
+            img {
+                max-width: 100px;
+            }
+            th, td {
+                padding: 8px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h2>📋 Live Google Form Responses</h2>
+    <div class="info">🔄 Auto-refreshes every 33 seconds | 🖼️ Click images to view full size</div>
+    <div class="countdown">⏱️ Next refresh in <span id="countdown">33</span> seconds</div>
+    <div id="content" class="loading">Loading data...</div>
+
+    <div id="imageModal" class="modal" onclick="closeModal()">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <img class="modal-content" id="modalImg">
+    </div>
+
+    <script>
+        // CONFIGURATION
+        const SPREADSHEET_ID = 'Y8RpQL5unnWe9Qo9qhgG2JRQXR9k';
+        const API_KEY = 'AIzaSyA6w188Nve689wC79Me_bv7X9IHC0RQhL8';
+        const SHEET_NAME = 'Form Responses 1';
+        const REFRESH_INTERVAL = 33; // seconds
+
+        let countdownTimer;
+        let timeLeft = REFRESH_INTERVAL;
+
+        // Fetch data from Google Sheets
+        async function fetchData() {
+            try {
+                const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_NAME}?key=${API_KEY}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.values && data.values.length > 0) {
+                    displayData(data.values);
+                } else {
+                    document.getElementById('content').innerHTML = '<p>No data found.</p>';
+                }
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                document.getElementById('content').innerHTML = '<p>Error loading data. Please check your API key and spreadsheet settings.</p>';
+            }
+        }
+
+        // Display data in table
+        function displayData(values) {
+            const headers = values[0];
+            const rows = values.slice(1);
+            
+            let html = '<table><tr>';
+            
+            // Headers
+            headers.forEach(header => {
+                html += `<th>${header}</th>`;
+            });
+            html += '</tr>';
+            
+            // Rows
+            rows.forEach(row => {
+                html += '<tr>';
+                headers.forEach((header, index) => {
+                    const cell = row[index] || '';
+                    
+                    if (cell && cell.toString().includes('https://drive.google.com')) {
+                        // Handle multiple images
+                        const urls = cell.toString().split(/[,\s]+/).map(url => url.trim()).filter(url => url.length > 0);
+                        html += '<td><div class="image-container">';
+                        
+                        urls.forEach(url => {
+                            if (url.includes('https://drive.google.com')) {
+                                const fileIdMatch = url.match(/[-\w]{25,}/);
+                                if (fileIdMatch) {
+                                    const fileId = fileIdMatch[0];
+                                    const imgUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`;
+                                    html += `<img src="${imgUrl}" onclick="openModal(this)" alt="Image" loading="lazy">`;
+                                }
+                            }
+                        });
+                        
+                        html += '</div></td>';
+                    } else {
+                        html += `<td>${cell}</td>`;
+                    }
+                });
+                html += '</tr>';
+            });
+            
+            html += '</table>';
+            document.getElementById('content').innerHTML = html;
+        }
+
+        // Modal functions
+        function openModal(img) {
+            event.stopPropagation();
+            const modal = document.getElementById('imageModal');
+            const modalImg = document.getElementById('modalImg');
+            modal.style.display = 'block';
+            const fullSizeUrl = img.src.replace('&sz=w400', '&sz=w2000');
+            modalImg.src = fullSizeUrl;
+        }
+
+        function closeModal() {
+            document.getElementById('imageModal').style.display = 'none';
+        }
+
+        // Countdown timer
+        function startCountdown() {
+            const countdownElement = document.getElementById('countdown');
+            timeLeft = REFRESH_INTERVAL;
+            
+            if (countdownTimer) clearInterval(countdownTimer);
+            
+            countdownTimer = setInterval(() => {
+                timeLeft--;
+                countdownElement.textContent = timeLeft;
+                
+                if (timeLeft <= 0) {
+                    clearInterval(countdownTimer);
+                    fetchData();
+                    startCountdown();
+                }
+            }, 1000);
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+
+        // Initialize
+        fetchData();
+        startCountdown();
+    </script>
+</body>
+</html>
