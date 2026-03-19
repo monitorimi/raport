@@ -5,13 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Live Google Form Responses</title>
     <style>
+        * {
+            box-sizing: border-box;
+        }
         body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 15px;
             background-color: #f5f5f5;
         }
         h2 {
             color: #333;
+            margin-top: 0;
         }
         .info {
             background: #e3f2fd;
@@ -19,6 +24,7 @@
             border-radius: 5px;
             margin-bottom: 15px;
             color: #1976d2;
+            font-size: 14px;
         }
         .loading {
             text-align: center;
@@ -26,9 +32,14 @@
             font-size: 18px;
             color: #666;
         }
+        .table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
         table {
             border-collapse: collapse;
             width: 100%;
+            min-width: 600px;
             background-color: white;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
@@ -36,36 +47,76 @@
             border: 1px solid #ddd;
             padding: 12px;
             text-align: left;
+            vertical-align: top;
         }
         th {
             background-color: #4CAF50;
             color: white;
             font-weight: bold;
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
         tr:nth-child(even) {
             background-color: #f9f9f9;
-        }
-        tr:hover {
-            background-color: #f1f1f1;
         }
         .image-container {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
+            min-height: 50px;
         }
-        img {
-            max-width: 150px;
-            height: auto;
-            cursor: pointer;
-            margin: 2px;
-            border-radius: 4px;
-            transition: all 0.3s;
+        .image-wrapper {
+            position: relative;
+            width: 120px;
+            height: 120px;
             background: #f0f0f0;
+            border-radius: 4px;
+            overflow: hidden;
         }
-        img:hover {
+        .image-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .image-wrapper img:hover {
             opacity: 0.8;
-            border: 3px solid #4CAF50;
             transform: scale(1.05);
+        }
+        .image-loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #999;
+            font-size: 12px;
+        }
+        .image-error {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #ffebee;
+            color: #c62828;
+            font-size: 11px;
+            text-align: center;
+            padding: 5px;
+        }
+        .view-link {
+            display: inline-block;
+            margin-top: 5px;
+            padding: 5px 10px;
+            background: #2196F3;
+            color: white;
+            text-decoration: none;
+            border-radius: 3px;
+            font-size: 12px;
         }
         .modal {
             display: none;
@@ -76,28 +127,30 @@
             width: 100%;
             height: 100%;
             background-color: rgba(0,0,0,0.95);
+            overflow: auto;
         }
         .modal-content {
-            margin: auto;
+            margin: 20px auto;
             display: block;
-            max-width: 90%;
-            max-height: 90%;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            border-radius: 8px;
+            max-width: 95%;
+            max-height: 95%;
         }
         .close {
-            position: absolute;
+            position: fixed;
             top: 15px;
             right: 35px;
             color: #f1f1f1;
-            font-size: 50px;
+            font-size: 40px;
             font-weight: bold;
             cursor: pointer;
             z-index: 1001;
-            transition: color 0.3s;
+            background: rgba(0,0,0,0.5);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .close:hover {
             color: #ff4444;
@@ -109,21 +162,29 @@
             margin-bottom: 15px;
             color: #856404;
             text-align: center;
-        }
-        .image-link {
-            display: block;
-            color: #1976d2;
-            text-decoration: none;
-            font-size: 12px;
-            margin-top: 5px;
+            font-size: 14px;
         }
         @media (max-width: 768px) {
-            img {
-                max-width: 100px;
+            body {
+                padding: 10px;
+            }
+            h2 {
+                font-size: 20px;
+            }
+            .image-wrapper {
+                width: 100px;
+                height: 100px;
             }
             th, td {
                 padding: 8px;
-                font-size: 14px;
+                font-size: 13px;
+            }
+            .close {
+                top: 10px;
+                right: 10px;
+                width: 40px;
+                height: 40px;
+                font-size: 30px;
             }
         }
     </style>
@@ -132,7 +193,9 @@
     <h2>📋 Live Google Form Responses</h2>
     <div class="info">🔄 Auto-refreshes every 33 seconds | 🖼️ Click images to view full size</div>
     <div class="countdown">⏱️ Next refresh in <span id="countdown">33</span> seconds</div>
-    <div id="content" class="loading">Loading data...</div>
+    <div class="table-container">
+        <div id="content" class="loading">Loading data...</div>
+    </div>
 
     <div id="imageModal" class="modal" onclick="closeModal()">
         <span class="close" onclick="closeModal()">&times;</span>
@@ -144,7 +207,7 @@
         const SPREADSHEET_ID = '1HqtOHoaVhRLkeH_Y8RpQL5unnWe9Qo9qhgG2JRQXR9k';
         const API_KEY = 'AIzaSyA6w188Nve689wC79Me_bv7X9IHC0RQhL8';
         const SHEET_NAME = 'Form Responses 1';
-        const REFRESH_INTERVAL = 33; // seconds
+        const REFRESH_INTERVAL = 33;
 
         let countdownTimer;
         let timeLeft = REFRESH_INTERVAL;
@@ -167,6 +230,59 @@
             return null;
         }
 
+        // Create image element with multiple fallback URLs
+        function createImageElement(fileId, index) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'image-wrapper';
+            wrapper.innerHTML = '<div class="image-loading">Loading...</div>';
+            
+            const img = document.createElement('img');
+            img.loading = 'lazy';
+            
+            // Multiple URL formats to try
+            const urls = [
+                `https://drive.google.com/uc?export=view&id=${fileId}`,
+                `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`,
+                `https://lh3.googleusercontent.com/d/${fileId}=w400`
+            ];
+            
+            let urlIndex = 0;
+            
+            img.onerror = function() {
+                urlIndex++;
+                if (urlIndex < urls.length) {
+                    img.src = urls[urlIndex];
+                } else {
+                    // All URLs failed - show view link instead
+                    wrapper.innerHTML = `
+                        <div class="image-error">
+                            📷 Image
+                            <br>
+                            <a href="https://drive.google.com/file/d/${fileId}/view" 
+                               target="_blank" 
+                               class="view-link" 
+                               onclick="event.stopPropagation()">
+                               View in Drive
+                            </a>
+                        </div>
+                    `;
+                }
+            };
+            
+            img.onload = function() {
+                wrapper.querySelector('.image-loading')?.remove();
+                img.onclick = function(e) {
+                    e.stopPropagation();
+                    openModal(fileId);
+                };
+                wrapper.appendChild(img);
+            };
+            
+            img.src = urls[0];
+            
+            return wrapper;
+        }
+
         // Fetch data from Google Sheets
         async function fetchData() {
             try {
@@ -181,7 +297,7 @@
                 }
             } catch (error) {
                 console.error('Error fetching data:', error);
-                document.getElementById('content').innerHTML = '<p>Error loading data. Please check your API key and spreadsheet settings.</p>';
+                document.getElementById('content').innerHTML = '<p>Error loading data. Check console for details.</p>';
             }
         }
 
@@ -192,62 +308,60 @@
             
             let html = '<table><tr>';
             
-            // Headers
             headers.forEach(header => {
                 html += `<th>${header}</th>`;
             });
             html += '</tr>';
             
-            // Rows
+            const tbody = document.createElement('tbody');
+            
             rows.forEach(row => {
-                html += '<tr>';
+                const tr = document.createElement('tr');
+                
                 headers.forEach((header, index) => {
+                    const td = document.createElement('td');
                     const cell = row[index] || '';
                     
                     if (cell && cell.toString().includes('drive.google.com')) {
-                        // Handle multiple images
                         const urls = cell.toString().split(/[,\s]+/).map(url => url.trim()).filter(url => url.length > 0);
-                        html += '<td><div class="image-container">';
+                        const container = document.createElement('div');
+                        container.className = 'image-container';
                         
-                        urls.forEach(url => {
+                        urls.forEach((url, imgIndex) => {
                             if (url.includes('drive.google.com')) {
                                 const fileId = extractFileId(url);
                                 if (fileId) {
-                                    // Try multiple Google Drive image URL formats
-                                    const imgUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
-                                    const thumbnailUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`;
-                                    
-                                    html += `<img src="${thumbnailUrl}" 
-                                             onerror="this.onerror=null; this.src='${imgUrl}';" 
-                                             onclick="openModal(this, '${fileId}')" 
-                                             alt="Image" 
-                                             loading="lazy">`;
+                                    container.appendChild(createImageElement(fileId, imgIndex));
                                 }
                             }
                         });
                         
-                        html += '</div></td>';
+                        td.appendChild(container);
                     } else {
-                        html += `<td>${cell}</td>`;
+                        td.textContent = cell;
                     }
+                    
+                    tr.appendChild(td);
                 });
-                html += '</tr>';
+                
+                tbody.appendChild(tr);
             });
             
             html += '</table>';
-            document.getElementById('content').innerHTML = html;
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            tempDiv.querySelector('table').appendChild(tbody);
+            
+            document.getElementById('content').innerHTML = '';
+            document.getElementById('content').appendChild(tempDiv.firstChild);
         }
 
         // Modal functions
-        function openModal(img, fileId) {
-            event.stopPropagation();
+        function openModal(fileId) {
             const modal = document.getElementById('imageModal');
             const modalImg = document.getElementById('modalImg');
             modal.style.display = 'block';
-            
-            // Try high-res version
-            const fullSizeUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
-            modalImg.src = fullSizeUrl;
+            modalImg.src = `https://drive.google.com/uc?export=view&id=${fileId}`;
         }
 
         function closeModal() {
