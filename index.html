@@ -2,255 +2,78 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="referrer" content="no-referrer">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Live Google Form Responses</title>
     <style>
-        * {
-            box-sizing: border-box;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-            margin: 0;
-            padding: 15px;
-            background-color: #f5f5f5;
-        }
-        h2 {
-            color: #333;
-            margin-top: 0;
-        }
-        .info {
-            background: #e3f2fd;
-            padding: 12px;
-            border-radius: 5px;
-            margin-bottom: 15px;
-            color: #1976d2;
-            font-size: 14px;
-        }
-        .loading {
-            text-align: center;
-            padding: 50px;
-            font-size: 18px;
-            color: #666;
-        }
-        .table-container {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-        table {
-            border-collapse: collapse;
-            width: 100%;
-            background-color: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 12px;
-            text-align: left;
-            vertical-align: top;
-        }
-        th {
-            background-color: #4CAF50;
-            color: white;
-            font-weight: bold;
-        }
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        .image-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-        .image-wrapper {
-            position: relative;
-            width: 120px;
-            height: 120px;
-            background: #f0f0f0;
-            border-radius: 4px;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .image-wrapper img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            cursor: pointer;
-        }
-        .image-loading {
-            color: #999;
-            font-size: 12px;
-        }
-        .view-link {
-            display: inline-block;
-            padding: 5px 10px;
-            background: #2196F3;
-            color: white;
-            text-decoration: none;
-            border-radius: 3px;
-            font-size: 11px;
-        }
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.95);
-        }
-        .modal-content {
-            margin: auto;
-            display: block;
-            max-width: 90%;
-            max-height: 90%;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-        }
-        .close {
-            position: absolute;
-            top: 15px;
-            right: 35px;
-            color: #f1f1f1;
-            font-size: 50px;
-            font-weight: bold;
-            cursor: pointer;
-            z-index: 1001;
-        }
-        .close:hover {
-            color: #ff4444;
-        }
-        .countdown {
-            background: #fff3cd;
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 15px;
-            color: #856404;
-            text-align: center;
-            font-size: 14px;
-        }
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
+        h2 { color: #333; }
+        .info { background: #e3f2fd; padding: 12px; border-radius: 5px; margin-bottom: 15px; color: #1976d2; }
+        .loading { text-align: center; padding: 50px; font-size: 18px; color: #666; }
+        table { border-collapse: collapse; width: 100%; background-color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #4CAF50; color: white; font-weight: bold; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        .image-container { display: flex; flex-wrap: wrap; gap: 8px; }
+        img { max-width: 120px; height: auto; cursor: pointer; border-radius: 4px; border: 1px solid #ccc; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.95); }
+        .modal-content { margin: auto; display: block; max-width: 95%; max-height: 90%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .close { position: absolute; top: 15px; right: 35px; color: #f1f1f1; font-size: 50px; font-weight: bold; cursor: pointer; }
         @media (max-width: 768px) {
-            body {
-                padding: 10px;
-            }
-            .image-wrapper {
-                width: 100px;
-                height: 100px;
-            }
-            th, td {
-                padding: 8px;
-                font-size: 13px;
-            }
+            table { font-size: 12px; }
+            th, td { padding: 5px; }
+            img { max-width: 80px; }
         }
     </style>
 </head>
 <body>
     <h2>📋 Live Google Form Responses</h2>
-    <div class="info">🔄 Auto-refreshes every 33 seconds | 🖼️ Click images to view full size</div>
-    <div class="countdown">⏱️ Next refresh in <span id="countdown">33</span> seconds</div>
-    <div class="table-container">
-        <div id="content" class="loading">Loading data...</div>
-    </div>
+    <div class="info">🔄 Auto-refreshes every 33s | 🖼️ Click images to enlarge</div>
+    <div id="content" class="loading">Loading data...</div>
 
     <div id="imageModal" class="modal" onclick="closeModal()">
-        <span class="close" onclick="closeModal()">&times;</span>
+        <span class="close">&times;</span>
         <img class="modal-content" id="modalImg">
     </div>
 
     <script>
-        // CONFIGURATION
         const SPREADSHEET_ID = '1HqtOHoaVhRLkeH_Y8RpQL5unnWe9Qo9qhgG2JRQXR9k';
         const API_KEY = 'AIzaSyA6w188Nve689wC79Me_bv7X9IHC0RQhL8';
         const SHEET_NAME = 'Form Responses 1';
-        const REFRESH_INTERVAL = 33;
 
-        let countdownTimer;
-        let timeLeft = REFRESH_INTERVAL;
-
-        // Extract file ID from Google Drive URL
-        function extractFileId(url) {
-            const patterns = [
-                /\/d\/([a-zA-Z0-9_-]+)/,
-                /id=([a-zA-Z0-9_-]+)/,
-                /\/file\/d\/([a-zA-Z0-9_-]+)/,
-                /open\?id=([a-zA-Z0-9_-]+)/
-            ];
-            
-            for (let pattern of patterns) {
-                const match = url.match(pattern);
-                if (match && match[1]) {
-                    return match[1];
-                }
-            }
-            return null;
-        }
-
-        // Fetch data from Google Sheets
         async function fetchData() {
             try {
                 const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_NAME}?key=${API_KEY}`;
                 const response = await fetch(url);
                 const data = await response.json();
-                
-                if (data.error) {
-                    console.error('API Error:', data.error);
-                    document.getElementById('content').innerHTML = `<p>Error: ${data.error.message}</p>`;
-                    return;
-                }
-                
-                if (data.values && data.values.length > 0) {
-                    displayData(data.values);
-                } else {
-                    document.getElementById('content').innerHTML = '<p>No data found.</p>';
-                }
-            } catch (error) {
-                console.error('Error fetching data:', error);
-                document.getElementById('content').innerHTML = `<p>Error loading data: ${error.message}</p>`;
+                if (data.values) displayData(data.values);
+            } catch (e) {
+                document.getElementById('content').innerHTML = "Error loading data.";
             }
         }
 
-        // Display data in table
         function displayData(values) {
             const headers = values[0];
             const rows = values.slice(1);
-            
             let html = '<table><tr>';
-            
-            headers.forEach(header => {
-                html += `<th>${header}</th>`;
-            });
+            headers.forEach(h => html += `<th>${h}</th>`);
             html += '</tr>';
-            
+
             rows.forEach(row => {
                 html += '<tr>';
-                headers.forEach((header, index) => {
-                    const cell = row[index] || '';
-                    
-                    if (cell && cell.toString().includes('drive.google.com')) {
-                        const urls = cell.toString().split(/[,\s]+/).map(url => url.trim()).filter(url => url.length > 0);
+                headers.forEach((h, i) => {
+                    let cell = row[i] || '';
+                    if (cell.toString().includes('drive.google.com')) {
+                        const urls = cell.split(/[,\s]+/).filter(u => u.includes('id=') || u.includes('/d/'));
                         html += '<td><div class="image-container">';
-                        
-                        urls.forEach((url, imgIndex) => {
-                            if (url.includes('drive.google.com')) {
-                                const fileId = extractFileId(url);
-                                if (fileId) {
-                                    const uniqueId = `img_${Date.now()}_${imgIndex}`;
-                                    html += `
-                                        <div class="image-wrapper" id="${uniqueId}">
-                                            <div class="image-loading">Loading...</div>
-                                        </div>
-                                    `;
-                                    
-                                    // Load image after DOM is ready
-                                    setTimeout(() => loadImage(fileId, uniqueId), 100);
-                                }
+                        urls.forEach(u => {
+                            const id = u.match(/[-\w]{25,}/);
+                            if (id) {
+                                // Updated URL format for better mobile compatibility
+                                const thumb = `https://lh3.googleusercontent.com/d/${id[0]}=s200`;
+                                html += `<img src="${thumb}" onclick="openModal('${id[0]}')" loading="lazy">`;
                             }
                         });
-                        
                         html += '</div></td>';
                     } else {
                         html += `<td>${cell}</td>`;
@@ -258,98 +81,24 @@
                 });
                 html += '</tr>';
             });
-            
-            html += '</table>';
-            document.getElementById('content').innerHTML = html;
+            document.getElementById('content').innerHTML = html + '</table>';
         }
 
-        // Load individual image
-        function loadImage(fileId, wrapperId) {
-            const wrapper = document.getElementById(wrapperId);
-            if (!wrapper) return;
-            
-            const img = document.createElement('img');
-            
-            // Try different URLs
-            const urls = [
-                `https://drive.google.com/uc?export=view&id=${fileId}`,
-                `https://lh3.googleusercontent.com/d/${fileId}`,
-                `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`
-            ];
-            
-            let urlIndex = 0;
-            
-            function tryNextUrl() {
-                if (urlIndex < urls.length) {
-                    img.src = urls[urlIndex];
-                } else {
-                    // All failed - show link
-                    wrapper.innerHTML = `
-                        <a href="https://drive.google.com/file/d/${fileId}/view" 
-                           target="_blank" 
-                           class="view-link">
-                           📷 View
-                        </a>
-                    `;
-                }
-            }
-            
-            img.onerror = function() {
-                urlIndex++;
-                tryNextUrl();
-            };
-            
-            img.onload = function() {
-                wrapper.innerHTML = '';
-                img.onclick = function(e) {
-                    e.stopPropagation();
-                    openModal(fileId);
-                };
-                wrapper.appendChild(img);
-            };
-            
-            tryNextUrl();
-        }
-
-        // Modal functions
-        function openModal(fileId) {
+        function openModal(id) {
             const modal = document.getElementById('imageModal');
             const modalImg = document.getElementById('modalImg');
             modal.style.display = 'block';
-            modalImg.src = `https://drive.google.com/uc?export=view&id=${fileId}`;
+            // Use a high-res version for the modal
+            modalImg.src = `https://lh3.googleusercontent.com/d/${id}=s2000`;
         }
 
         function closeModal() {
             document.getElementById('imageModal').style.display = 'none';
         }
 
-        // Countdown timer
-        function startCountdown() {
-            const countdownElement = document.getElementById('countdown');
-            timeLeft = REFRESH_INTERVAL;
-            
-            if (countdownTimer) clearInterval(countdownTimer);
-            
-            countdownTimer = setInterval(() => {
-                timeLeft--;
-                countdownElement.textContent = timeLeft;
-                
-                if (timeLeft <= 0) {
-                    clearInterval(countdownTimer);
-                    fetchData();
-                    startCountdown();
-                }
-            }, 1000);
-        }
-
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') closeModal();
-        });
-
-        // Initialize
+        // Initialize and refresh
         fetchData();
-        startCountdown();
+        setInterval(fetchData, 33000);
     </script>
 </body>
 </html>
