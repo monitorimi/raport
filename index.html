@@ -39,7 +39,6 @@
         table {
             border-collapse: collapse;
             width: 100%;
-            min-width: 600px;
             background-color: white;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
@@ -53,9 +52,6 @@
             background-color: #4CAF50;
             color: white;
             font-weight: bold;
-            position: sticky;
-            top: 0;
-            z-index: 10;
         }
         tr:nth-child(even) {
             background-color: #f9f9f9;
@@ -64,7 +60,6 @@
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
-            min-height: 50px;
         }
         .image-wrapper {
             position: relative;
@@ -73,50 +68,28 @@
             background: #f0f0f0;
             border-radius: 4px;
             overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .image-wrapper img {
             width: 100%;
             height: 100%;
             object-fit: cover;
             cursor: pointer;
-            transition: all 0.3s;
-        }
-        .image-wrapper img:hover {
-            opacity: 0.8;
-            transform: scale(1.05);
         }
         .image-loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
             color: #999;
             font-size: 12px;
         }
-        .image-error {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #ffebee;
-            color: #c62828;
-            font-size: 11px;
-            text-align: center;
-            padding: 5px;
-        }
         .view-link {
             display: inline-block;
-            margin-top: 5px;
             padding: 5px 10px;
             background: #2196F3;
             color: white;
             text-decoration: none;
             border-radius: 3px;
-            font-size: 12px;
+            font-size: 11px;
         }
         .modal {
             display: none;
@@ -127,30 +100,26 @@
             width: 100%;
             height: 100%;
             background-color: rgba(0,0,0,0.95);
-            overflow: auto;
         }
         .modal-content {
-            margin: 20px auto;
+            margin: auto;
             display: block;
-            max-width: 95%;
-            max-height: 95%;
+            max-width: 90%;
+            max-height: 90%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
         }
         .close {
-            position: fixed;
+            position: absolute;
             top: 15px;
             right: 35px;
             color: #f1f1f1;
-            font-size: 40px;
+            font-size: 50px;
             font-weight: bold;
             cursor: pointer;
             z-index: 1001;
-            background: rgba(0,0,0,0.5);
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
         .close:hover {
             color: #ff4444;
@@ -168,9 +137,6 @@
             body {
                 padding: 10px;
             }
-            h2 {
-                font-size: 20px;
-            }
             .image-wrapper {
                 width: 100px;
                 height: 100px;
@@ -178,13 +144,6 @@
             th, td {
                 padding: 8px;
                 font-size: 13px;
-            }
-            .close {
-                top: 10px;
-                right: 10px;
-                width: 40px;
-                height: 40px;
-                font-size: 30px;
             }
         }
     </style>
@@ -230,65 +189,18 @@
             return null;
         }
 
-        // Create image element with multiple fallback URLs
-        function createImageElement(fileId, index) {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'image-wrapper';
-            wrapper.innerHTML = '<div class="image-loading">Loading...</div>';
-            
-            const img = document.createElement('img');
-            img.loading = 'lazy';
-            
-            // Multiple URL formats to try
-            const urls = [
-                `https://drive.google.com/uc?export=view&id=${fileId}`,
-                `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`,
-                `https://lh3.googleusercontent.com/d/${fileId}=w400`
-            ];
-            
-            let urlIndex = 0;
-            
-            img.onerror = function() {
-                urlIndex++;
-                if (urlIndex < urls.length) {
-                    img.src = urls[urlIndex];
-                } else {
-                    // All URLs failed - show view link instead
-                    wrapper.innerHTML = `
-                        <div class="image-error">
-                            📷 Image
-                            <br>
-                            <a href="https://drive.google.com/file/d/${fileId}/view" 
-                               target="_blank" 
-                               class="view-link" 
-                               onclick="event.stopPropagation()">
-                               View in Drive
-                            </a>
-                        </div>
-                    `;
-                }
-            };
-            
-            img.onload = function() {
-                wrapper.querySelector('.image-loading')?.remove();
-                img.onclick = function(e) {
-                    e.stopPropagation();
-                    openModal(fileId);
-                };
-                wrapper.appendChild(img);
-            };
-            
-            img.src = urls[0];
-            
-            return wrapper;
-        }
-
         // Fetch data from Google Sheets
         async function fetchData() {
             try {
                 const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${SHEET_NAME}?key=${API_KEY}`;
                 const response = await fetch(url);
                 const data = await response.json();
+                
+                if (data.error) {
+                    console.error('API Error:', data.error);
+                    document.getElementById('content').innerHTML = `<p>Error: ${data.error.message}</p>`;
+                    return;
+                }
                 
                 if (data.values && data.values.length > 0) {
                     displayData(data.values);
@@ -297,7 +209,7 @@
                 }
             } catch (error) {
                 console.error('Error fetching data:', error);
-                document.getElementById('content').innerHTML = '<p>Error loading data. Check console for details.</p>';
+                document.getElementById('content').innerHTML = `<p>Error loading data: ${error.message}</p>`;
             }
         }
 
@@ -313,47 +225,90 @@
             });
             html += '</tr>';
             
-            const tbody = document.createElement('tbody');
-            
             rows.forEach(row => {
-                const tr = document.createElement('tr');
-                
+                html += '<tr>';
                 headers.forEach((header, index) => {
-                    const td = document.createElement('td');
                     const cell = row[index] || '';
                     
                     if (cell && cell.toString().includes('drive.google.com')) {
                         const urls = cell.toString().split(/[,\s]+/).map(url => url.trim()).filter(url => url.length > 0);
-                        const container = document.createElement('div');
-                        container.className = 'image-container';
+                        html += '<td><div class="image-container">';
                         
                         urls.forEach((url, imgIndex) => {
                             if (url.includes('drive.google.com')) {
                                 const fileId = extractFileId(url);
                                 if (fileId) {
-                                    container.appendChild(createImageElement(fileId, imgIndex));
+                                    const uniqueId = `img_${Date.now()}_${imgIndex}`;
+                                    html += `
+                                        <div class="image-wrapper" id="${uniqueId}">
+                                            <div class="image-loading">Loading...</div>
+                                        </div>
+                                    `;
+                                    
+                                    // Load image after DOM is ready
+                                    setTimeout(() => loadImage(fileId, uniqueId), 100);
                                 }
                             }
                         });
                         
-                        td.appendChild(container);
+                        html += '</div></td>';
                     } else {
-                        td.textContent = cell;
+                        html += `<td>${cell}</td>`;
                     }
-                    
-                    tr.appendChild(td);
                 });
-                
-                tbody.appendChild(tr);
+                html += '</tr>';
             });
             
             html += '</table>';
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = html;
-            tempDiv.querySelector('table').appendChild(tbody);
+            document.getElementById('content').innerHTML = html;
+        }
+
+        // Load individual image
+        function loadImage(fileId, wrapperId) {
+            const wrapper = document.getElementById(wrapperId);
+            if (!wrapper) return;
             
-            document.getElementById('content').innerHTML = '';
-            document.getElementById('content').appendChild(tempDiv.firstChild);
+            const img = document.createElement('img');
+            
+            // Try different URLs
+            const urls = [
+                `https://drive.google.com/uc?export=view&id=${fileId}`,
+                `https://lh3.googleusercontent.com/d/${fileId}`,
+                `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`
+            ];
+            
+            let urlIndex = 0;
+            
+            function tryNextUrl() {
+                if (urlIndex < urls.length) {
+                    img.src = urls[urlIndex];
+                } else {
+                    // All failed - show link
+                    wrapper.innerHTML = `
+                        <a href="https://drive.google.com/file/d/${fileId}/view" 
+                           target="_blank" 
+                           class="view-link">
+                           📷 View
+                        </a>
+                    `;
+                }
+            }
+            
+            img.onerror = function() {
+                urlIndex++;
+                tryNextUrl();
+            };
+            
+            img.onload = function() {
+                wrapper.innerHTML = '';
+                img.onclick = function(e) {
+                    e.stopPropagation();
+                    openModal(fileId);
+                };
+                wrapper.appendChild(img);
+            };
+            
+            tryNextUrl();
         }
 
         // Modal functions
