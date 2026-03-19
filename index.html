@@ -60,6 +60,7 @@
             margin: 2px;
             border-radius: 4px;
             transition: all 0.3s;
+            background: #f0f0f0;
         }
         img:hover {
             opacity: 0.8;
@@ -109,6 +110,13 @@
             color: #856404;
             text-align: center;
         }
+        .image-link {
+            display: block;
+            color: #1976d2;
+            text-decoration: none;
+            font-size: 12px;
+            margin-top: 5px;
+        }
         @media (max-width: 768px) {
             img {
                 max-width: 100px;
@@ -140,6 +148,24 @@
 
         let countdownTimer;
         let timeLeft = REFRESH_INTERVAL;
+
+        // Extract file ID from Google Drive URL
+        function extractFileId(url) {
+            const patterns = [
+                /\/d\/([a-zA-Z0-9_-]+)/,
+                /id=([a-zA-Z0-9_-]+)/,
+                /\/file\/d\/([a-zA-Z0-9_-]+)/,
+                /open\?id=([a-zA-Z0-9_-]+)/
+            ];
+            
+            for (let pattern of patterns) {
+                const match = url.match(pattern);
+                if (match && match[1]) {
+                    return match[1];
+                }
+            }
+            return null;
+        }
 
         // Fetch data from Google Sheets
         async function fetchData() {
@@ -178,18 +204,24 @@
                 headers.forEach((header, index) => {
                     const cell = row[index] || '';
                     
-                    if (cell && cell.toString().includes('https://drive.google.com')) {
+                    if (cell && cell.toString().includes('drive.google.com')) {
                         // Handle multiple images
                         const urls = cell.toString().split(/[,\s]+/).map(url => url.trim()).filter(url => url.length > 0);
                         html += '<td><div class="image-container">';
                         
                         urls.forEach(url => {
-                            if (url.includes('https://drive.google.com')) {
-                                const fileIdMatch = url.match(/[-\w]{25,}/);
-                                if (fileIdMatch) {
-                                    const fileId = fileIdMatch[0];
-                                    const imgUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`;
-                                    html += `<img src="${imgUrl}" onclick="openModal(this)" alt="Image" loading="lazy">`;
+                            if (url.includes('drive.google.com')) {
+                                const fileId = extractFileId(url);
+                                if (fileId) {
+                                    // Try multiple Google Drive image URL formats
+                                    const imgUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+                                    const thumbnailUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`;
+                                    
+                                    html += `<img src="${thumbnailUrl}" 
+                                             onerror="this.onerror=null; this.src='${imgUrl}';" 
+                                             onclick="openModal(this, '${fileId}')" 
+                                             alt="Image" 
+                                             loading="lazy">`;
                                 }
                             }
                         });
@@ -207,12 +239,14 @@
         }
 
         // Modal functions
-        function openModal(img) {
+        function openModal(img, fileId) {
             event.stopPropagation();
             const modal = document.getElementById('imageModal');
             const modalImg = document.getElementById('modalImg');
             modal.style.display = 'block';
-            const fullSizeUrl = img.src.replace('&sz=w400', '&sz=w2000');
+            
+            // Try high-res version
+            const fullSizeUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
             modalImg.src = fullSizeUrl;
         }
 
